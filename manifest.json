@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Driver Form Auto-Filler",
+  "version": "1.0",
+  "description": "Fill driver forms automatically from database",
+  "permissions": ["activeTab", "storage", "scripting"],
+  "host_permissions": [
+    "http://localhost:3000/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+}
