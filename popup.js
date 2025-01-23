@@ -422,6 +422,180 @@ async function fillFormFields(driver) {
   // }
 }
 
+async function submitForm() {
+  const script = {
+    target: {
+      tabId: (await chrome.tabs.query({ active: true, currentWindow: true }))[0].id,
+      allFrames: true
+    },
+    func: async () => {
+      function findForm() {
+        const filledInputs = document.querySelectorAll('input[filled="true"]');
+        if (filledInputs.length > 0) {
+          return filledInputs[0].closest('form');
+        }
+        
+        const forms = document.querySelectorAll('form');
+        if (forms.length === 0) return null;
+        
+        let bestForm = null;
+        let maxFilledInputs = 0;
+        
+        forms.forEach(form => {
+          const filledInputCount = Array.from(form.querySelectorAll('input')).filter(input => 
+            input.value || (input.files && input.files.length > 0) || input.checked
+          ).length;
+          
+          if (filledInputCount > maxFilledInputs) {
+            maxFilledInputs = filledInputCount;
+            bestForm = form;
+          }
+        });
+        
+        return bestForm;
+      }
+
+      return new Promise((resolve, reject) => {
+        const form = findForm();
+        
+        if (!form) {
+          resolve({ 
+            success: false, 
+            error: 'No form found on the page' 
+          });
+          return;
+        }
+
+        const submitter = {
+          handleEvent: async function(event) {
+            event.preventDefault();
+            
+            try {
+              const formData = new FormData(form);
+              const action = form.action || window.location.href;
+              const method = (form.method || 'GET').toUpperCase();
+
+              let fetchOptions = {
+                method: method,
+                headers: {
+                  'Accept': 'application/json, text/html, text/plain'
+                }
+              };
+
+              if (method === 'GET') {
+                const params = new URLSearchParams(formData);
+                const url = new URL(action);
+                url.search = params.toString();
+                
+                const response = await fetch(url.toString(), fetchOptions);
+                
+                const responseText = await response.text();
+                
+                resolve({
+                  success: response.ok,
+                  status: response.status,
+                  contentType: response.headers.get('content-type'),
+                  rawResponse: responseText,
+                  prettyResponse: tryParseResponse(responseText, response.headers.get('content-type'))
+                });
+              } 
+              else {
+                fetchOptions.body = formData;
+                
+                const response = await fetch(action, fetchOptions);
+                
+                const responseText = await response.text();
+                
+                resolve({
+                  success: response.ok,
+                  status: response.status,
+                  contentType: response.headers.get('content-type'),
+                  rawResponse: responseText,
+                  prettyResponse: tryParseResponse(responseText, response.headers.get('content-type'))
+                });
+              }
+            } catch (error) {
+              resolve({
+                success: false,
+                error: error.message || 'Form submission failed'
+              });
+            } finally {
+              form.removeEventListener('submit', submitter);
+            }
+          }
+        };
+        
+        function tryParseResponse(responseText, contentType) {
+          try {
+            // Try parsing JSON
+            if (contentType && contentType.includes('application/json')) {
+              return JSON.stringify(JSON.parse(responseText), null, 2);
+            }
+            
+            // Try parsing HTML
+            if (contentType && contentType.includes('text/html')) {
+              const parser = new DOMParser();
+              const doc = parser.parseFromString(responseText, 'text/html');
+              const title = doc.querySelector('title')?.textContent || 'No Title';
+              const bodyText = doc.body?.textContent?.trim() || 'Empty Body';
+              return `Title: ${title}\n\nBody Preview: ${bodyText.substring(0, 500)}...`;
+            }
+            
+            // For plain text or other types
+            return responseText;
+          } catch (parseError) {
+            return responseText;
+          }
+        }
+        
+        try {
+          form.addEventListener('submit', submitter);
+          
+          const submitButton = form.querySelector('button[type="submit"], input[type="submit"]') || 
+                             Array.from(form.querySelectorAll('button')).find(btn => 
+                               btn.textContent.toLowerCase().includes('submit') || 
+                               btn.textContent.toLowerCase().includes('save') ||
+                               btn.textContent.toLowerCase().includes('continue')
+                             );
+          
+          if (submitButton) {
+            submitButton.click();
+          } else {
+            form.submit();
+          }
+        } catch (error) {
+          resolve({
+            success: false,
+            error: 'Failed to trigger form submission'
+          });
+        }
+      });
+    }
+  };
+
+  try {
+    const results = await chrome.scripting.executeScript(script);
+    if (!results || !results[0] || !results[0].result) {
+      throw new Error('Script execution failed');
+    }
+    return results[0].result;
+  } catch (error) {
+    return {
+      success: false,
+      error: `Script execution failed: ${error.message}`
+    };
+  }
+}
+
+function escapeHtml(unsafe) {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   fetchDrivers();
 
@@ -449,5 +623,37 @@ document.addEventListener("DOMContentLoaded", () => {
     select.classList.add("loading");
     await fillFormFields(driver);
     select.classList.remove("loading");
+  });
+
+  document.getElementById("submitButton").addEventListener("click", async () => {
+    try {
+      showStatus("Submitting form...");
+      const result = await submitForm();
+      
+      if (result.success) {
+        showStatus(`Form submitted successfully! Status: ${result.status}`);
+        console.log('Content Type:', result.contentType);
+        console.log('Raw Response:', result.rawResponse);
+        console.log('Parsed Response:', result.prettyResponse);
+        
+        // Optional: You can create a modal or expand the status div to show more details
+        const statusDiv = document.getElementById("status");
+        statusDiv.innerHTML += `
+          <div class="response-details">
+            <strong>Content Type:</strong> ${result.contentType}<br>
+            <strong>Status:</strong> ${result.status}<br>
+            <details>
+              <summary>Response Details</summary>
+              <pre>${escapeHtml(result.prettyResponse)}</pre>
+            </details>
+          </div>
+        `;
+      } else {
+        showStatus(`Form submission failed: ${result.error || 'Unknown error'}`, true);
+      }
+    } catch (error) {
+      showStatus(`Error submitting form: ${error.message || 'Unknown error'}`, true);
+      console.error("Submission error:", error);
+    }
   });
 });
