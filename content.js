@@ -1,5 +1,5 @@
 
-//content.json
+//content.js
 
 async function fillFileInput(fileUrl) {
   try {
