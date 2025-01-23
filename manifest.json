@@ -3,10 +3,13 @@
   "name": "Driver Form Auto-Filler",
   "version": "1.0",
   "description": "Fill driver forms automatically from database",
-  "permissions": ["activeTab", "storage", "scripting"],
+  "permissions": ["webRequest", "activeTab", "storage", "scripting"],
   "host_permissions": [
     "http://localhost:3000/*"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
   "action": {
     "default_popup": "popup.html"
   },
