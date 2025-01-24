@@ -2,10 +2,10 @@
   "manifest_version": 3,
   "name": "Driver Form Auto-Filler",
   "version": "1.0",
-  "description": "Fill driver forms automatically from database",
-  "permissions": ["webRequest", "activeTab", "storage", "scripting"],
+  "description": "Fill driver forms automatically using data from the API",
+  "permissions": ["cookies", "activeTab", "storage", "scripting"],
   "host_permissions": [
-    "http://localhost:3000/*"
+    "https://api.supertruck.ai/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
