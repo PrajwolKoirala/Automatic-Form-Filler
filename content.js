@@ -1,4 +1,3 @@
-
 //content.js
 
 async function fillFileInput(fileUrl) {

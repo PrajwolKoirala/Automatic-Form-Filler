@@ -3,15 +3,14 @@
   "name": "Driver Form Auto-Filler",
   "version": "1.0",
   "description": "Fill driver forms automatically using data from the API",
-  "permissions": ["cookies", "activeTab", "storage", "scripting"],
-  "host_permissions": [
-    "https://api.supertruck.ai/*"
-  ],
+  "permissions": ["cookies", "activeTab", "storage", "scripting", "downloads"],
+  "host_permissions": ["<all_urls>"],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
   },
   "content_scripts": [
     {

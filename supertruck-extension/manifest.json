@@ -1,0 +1,14 @@
+{
+    "manifest_version": 3,
+    "name": "Super Truck Extebsion",
+    "version": "1.0",
+    "description": "Automatically fills driver forms using data from SuperTruck API.",
+    "permissions": ["cookies", "tabs", "downloads", "storage"],
+    "host_permissions": ["https://api.supertruck.ai/*"],
+    "background": {
+      "service_worker": "background.js"
+    },
+    "action": {
+      "default_popup": "index.html"
+    }
+  }

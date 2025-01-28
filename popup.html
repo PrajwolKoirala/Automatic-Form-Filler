@@ -1,17 +1,27 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html>
   <head>
     <title>Driver Form Auto-Filler</title>
     <style>
       body {
+        width: 400px;
         font-family: Arial, sans-serif;
         padding: 10px;
+        background-color: #f9f9f9;
       }
       button {
         width: 100%;
         padding: 10px;
         margin: 5px 0;
         box-sizing: border-box;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #0056b3;
       }
       #status {
         margin-top: 10px;
@@ -26,29 +36,31 @@
         background-color: #f8d7da;
         color: #721c24;
       }
-      .data-section {
+      .carrier-info {
         margin-top: 20px;
-        border: 1px solid #ddd;
+        padding: 15px;
+        background-color: white;
         border-radius: 5px;
-        padding: 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
-      .data-section h4 {
-        margin: 0;
-        cursor: pointer;
-        color: #007bff;
+      .carrier-info h3 {
+        margin-top: 0;
+        color: #333;
       }
-      .data-section h4:hover {
-        text-decoration: underline;
+      .carrier-details p {
+        margin: 5px 0;
+        color: #555;
       }
-      .data-section pre {
-        background-color: #f9f9f9;
-        padding: 10px;
+      .documents-section {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: white;
         border-radius: 5px;
-        overflow-x: auto;
-        display: none; /* Hidden by default */
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
-      .data-section.expanded pre {
-        display: block; /* Show when expanded */
+      .documents-section h3 {
+        margin-top: 0;
+        color: #333;
       }
       .document-list {
         margin-top: 10px;
@@ -57,7 +69,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 5px 0;
+        padding: 10px;
         border-bottom: 1px solid #eee;
       }
       .document-item:last-child {
@@ -67,6 +79,10 @@
         width: auto;
         padding: 5px 10px;
         font-size: 12px;
+        background-color: #28a745;
+      }
+      .document-item button:hover {
+        background-color: #218838;
       }
     </style>
   </head>
@@ -75,6 +91,384 @@
     <button id="fetchAndFillButton">Fetch Data & Fill Form</button>
     <div id="status"></div>
     <div id="dataDisplay"></div>
+    <script src="popup.js"></script>
+  </body>
+</html> -->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Driver Form Auto-Filler</title>
+    <style>
+      
+   body {
+        background-color: #f4f8fb;
+        width: 400px;
+        max-height: 600px;
+        padding: 0;
+        margin: 0;
+        color: #333;
+      }
+
+      .nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        padding: 1rem;
+        background-color: #ffffff;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .heading {
+       
+        font-size: 1rem;
+        font-weight: 400;
+        color: #333;
+      }
+
+      .logo {
+        margin-right: 30px;
+        width: 20px;
+        height: 20px;
+      }
+
+      .initial-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem;
+        text-align: center;
+      }
+
+      .initial-content.hidden {
+        display: none;
+      }
+
+      .data-content {
+        display: none;
+      }
+
+      .data-content.visible {
+        display: block;
+      }
+
+      .icon-container {
+        margin-bottom: 20px;
+      }
+
+      .icon-container img {
+        width: 100px;
+        height: auto;
+      }
+
+      h3 {
+        font-size: 20px;
+        margin: 10px 0;
+      }
+
+      p {
+        font-size: 14px;
+        color: #555;
+        margin-bottom: 20px;
+      }
+
+      button {
+        background-color: #4caf50;
+        color: white;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        width: 50%;
+      }
+
+      button:hover {
+        background-color: #45a049;
+      }
+
+      #status {
+        margin-top: 15px;
+        padding: 10px;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+
+      .success {
+        background-color: #d4edda;
+        color: #155724;
+      }
+
+      .error {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+
+      .carrier-info {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        margin: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      }
+
+      .section-title {
+        color: #2e7d32;
+        font-size: 16px;
+        font-weight: 500;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e0e0e0;
+      }
+
+      .carrier-details {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .detail-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .detail-label {
+        color: #666;
+        font-size: 12px;
+      }
+
+      .detail-value {
+        color: #333;
+        font-size: 14px;
+      }
+
+      .documents-section {
+        margin-top: 24px;
+      }
+
+      .document-list {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .document-item {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .document-icon {
+        width: 32px;
+        height: 32px;
+        color: #666;
+      }
+
+      .document-name {
+        font-size: 12px;
+        color: #333;
+        text-align: center;
+        margin: 4px 0;
+      }
+
+      .download-button {
+        background: transparent;
+        border: none;
+        color: #2e7d32;
+        font-size: 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .download-button:hover {
+        color: #1b5e20;
+      }
+
+      .status-bar {
+        background: #e8f5e9;
+        color: #2e7d32;
+        padding: 8px 16px;
+        border-radius: 4px;
+        margin-bottom: 16px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+  
+      /* Close button styles */
+      .close-button {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 4px;
+        color: #666;
+      }
+
+      .close-button:hover {
+        color: #333;
+      }
+
+      .data-container {
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: #888 #f1f1f1;
+}
+
+.data-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+
+.data-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.data-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.section {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.section-header {
+  color: #2E7D32;
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.info-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+}
+
+.info-label {
+  color: #666;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.info-value {
+  color: #333;
+  font-size: 14px;
+}
+
+.document-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.document-card {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.doc-icon-container {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doc-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-name {
+  font-size: 12px;
+  color: #333;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.download-icon {
+  color: #2E7D32;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.download-icon:hover {
+  color: #1B5E20;
+}
+
+.status-message {
+  background: #e8f5e9;
+  color: #2E7D32;
+  padding: 8px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+
+    </style>
+  </head>
+  <body>
+    <div class="nav">
+      <div class="heading">SUPER<strong>TRUCK</strong></div>
+      <div class="logo"><img src="/icon.svg" alt="logo" height="20px" width="20px"></div>
+    </div>
+
+    <div class="initial-content" id="initialContent">
+      <div class="icon-container">
+        <img src="/image/image.svg" alt="Auto-Fill Icon" />
+      </div>
+      <h3>Auto-Fill in an Instant</h3>
+      <p>
+        Quickly and effortlessly complete online forms with precision, saving
+        time and reducing errors.
+      </p>
+      <button id="fetchAndFillButton">Auto Fill</button>
+    </div>
+
+    <div class="data-content" id="dataContent">
+      <div id="status"></div>
+      <div id="dataDisplay"></div>
+    </div>
     <script src="popup.js"></script>
   </body>
 </html>
