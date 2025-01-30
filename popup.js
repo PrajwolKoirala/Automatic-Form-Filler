@@ -1,647 +1,4 @@
-// let drivers = [];
 
-// function showStatus(message, isError = false) {
-//   const status = document.getElementById("status");
-//   status.textContent = message;
-//   status.className = isError ? "error" : "success";
-// }
-
-// async function getAccessToken() {
-//   return new Promise((resolve) => {
-//     chrome.cookies.get(
-//       {
-//         url: "https://api.supertruck.ai",
-//         name: "supertruck_access_token",
-//       },
-//       (cookie) => {
-//         if (chrome.runtime.lastError) {
-//           console.error("Cookie error:", chrome.runtime.lastError);
-//           resolve(null);
-//         } else if (cookie) {
-//           console.log("Cookie found:", cookie);
-//           resolve(cookie.value);
-//         } else {
-//           console.log("Cookie not found");
-//           resolve(null);
-//         }
-//       }
-//     );
-//   });
-// }
-
-// async function fetchDrivers() {
-//   try {
-//     // Retrieve the access token from cookies
-//     const token = await getAccessToken();
-
-//     if (!token) {
-//       showStatus("Access token not found in cookies. Please log in to the application.", true);
-//       return;
-//     }
-
-//     // Fetch data from the API
-//     const response = await fetch(
-//       "https://api.supertruck.ai/production/api/v1/broker-setup-agent/list-assigned-tickets/2",
-//       {
-//         headers: {
-//           Authorization: `Bearer ${token}`,
-//         },
-//       }
-//     );
-
-//     if (!response.ok) {
-//       throw new Error(`HTTP error! status: ${response.status}`);
-//     }
-
-//     const data = await response.json();
-
-//     // Map the API response to the driver structure
-//     drivers = data.data.carrier.drivers.map((driver) => ({
-//       _id: driver.id,
-//       firstName: driver.name.split(" ")[0],
-//       lastName: driver.name.split(" ")[1] || "",
-//       email: `${driver.name.replace(/\s/g, "").toLowerCase()}@example.com`, // Placeholder email
-//       license: {
-//         number: driver.id, // Placeholder license number
-//       },
-//       documents: data.data.carrier.documents.reduce((acc, doc) => {
-//         acc[doc.type] = { url: doc.path, fileName: doc.name };
-//         return acc;
-//       }, {}),
-//     }));
-
-//     console.log("Fetched drivers:", drivers);
-//     return drivers;
-//   } catch (error) {
-//     showStatus("Error fetching drivers: " + error.message, true);
-//     console.error("Fetch error:", error);
-//     return null;
-//   }
-// }
-
-// async function fillFormFields(driver) {
-//   const script = {
-//     target: {
-//       tabId: (await chrome.tabs.query({ active: true, currentWindow: true }))[0].id,
-//       allFrames: true,
-//     },
-//     func: async (driverData) => {
-//       try {
-//         // Function to fill file inputs
-//         async function fillFileInput(fileData) {
-//           if (!fileData?.url) return false;
-
-//           try {
-//             const response = await fetch(fileData.url);
-//             if (!response.ok)
-//               throw new Error(`HTTP error! status: ${response.status}`);
-
-//             const blob = await response.blob();
-//             const file = new File([blob], fileData.fileName || "file", {
-//               type: fileData.mimeType || blob.type,
-//             });
-
-//             const dataTransfer = new DataTransfer();
-//             dataTransfer.items.add(file);
-
-//             return dataTransfer.files;
-//           } catch (error) {
-//             console.error("Error fetching file:", error);
-//             return false;
-//           }
-//         }
-
-//         // Function to fill inputs
-//         function fillInput(selector, value, isFileInput = false) {
-//           const inputs = document.querySelectorAll(selector);
-//           if (inputs.length === 0) return false;
-
-//           inputs.forEach(async (input) => {
-//             try {
-//               const tag = input.tagName.toLowerCase();
-
-//               if (tag === "input") {
-//                 const type = input.type.toLowerCase();
-
-//                 if (type === "file" && isFileInput) {
-//                   const files = await fillFileInput(value);
-//                   if (files) {
-//                     input.files = files;
-//                     input.dispatchEvent(new Event("change", { bubbles: true }));
-//                   }
-//                 } else if (type === "checkbox" || type === "radio") {
-//                   input.checked = value === true || value === input.value;
-//                   input.dispatchEvent(new Event("change", { bubbles: true }));
-//                 } else if (type === "date" && value) {
-//                   const date = new Date(value);
-//                   if (!isNaN(date)) {
-//                     input.value = date.toISOString().split("T")[0];
-//                     input.dispatchEvent(new Event("change", { bubbles: true }));
-//                   }
-//                 } else if (value != null) {
-//                   input.value = value;
-//                   input.dispatchEvent(new Event("change", { bubbles: true }));
-//                 }
-//               } else if (tag === "select" && value != null) {
-//                 const option = Array.from(input.options).find(
-//                   (opt) =>
-//                     opt.value.toLowerCase() === String(value).toLowerCase() ||
-//                     opt.text.toLowerCase() === String(value).toLowerCase()
-//                 );
-//                 if (option) {
-//                   input.value = option.value;
-//                   input.dispatchEvent(new Event("change", { bubbles: true }));
-//                 }
-//               }
-//             } catch (error) {
-//               console.error(`Error filling input ${selector}:`, error);
-//             }
-//           });
-
-//           return inputs.length > 0;
-//         }
-
-//         // Field mapping
-//         const fieldMap = {
-//           firstName: '[name="firstName"], [name="first_name"], [name="fname"], [name="first"], #firstName, #first_name, #fname, #first, [placeholder*="first name" i], input[type="text"][id*="first" i]',
-//           lastName: '[name="lastName"], [name="last_name"], [name="lname"], [name="last"], #lastName, #last_name, #lname, #last, [placeholder*="last name" i], input[type="text"][id*="last" i]',
-//           email: '[name="email"], [name="emailAddress"], #email, #emailAddress, input[type="email"], [placeholder*="email" i]',
-//           "license.number": '[name="licenseNumber"], [name="license"], #licenseNumber, #license, [placeholder*="license" i]',
-//           "documents.licenseImage": '[name="licenseImage"], [name="driverLicense"], #licenseI mage, #driverLicense, input[type="file"][name*="license" i]',
-//         };
-
-//         // Fill all fields
-//         const results = await Promise.all(
-//           Object.entries(fieldMap).map(async ([field, selector]) => {
-//             const value = field.split(".").reduce((obj, key) => obj?.[key], driverData);
-//             const isFileInput = field.startsWith("documents.");
-//             if (value) {
-//               const success = await fillInput(selector, value, isFileInput);
-//               return { field, success };
-//             }
-//             return { field, success: false };
-//           })
-//         );
-
-//         return {
-//           success: results.some((r) => r.success),
-//           filledFields: results.filter((r) => r.success).map((r) => r.field),
-//           failedFields: results.filter((r) => !r.success).map((r) => r.field),
-//         };
-//       } catch (error) {
-//         console.error("Error in injected script:", error);
-//         return {
-//           success: false,
-//           error: error.message || "Unknown error in injected script",
-//         };
-//       }
-//     },
-//     args: [driver],
-//   };
-
-//   try {
-//     const results = await chrome.scripting.executeScript(script);
-//     const result = results[0].result;
-
-//     if (result.success) {
-//       showStatus(`Successfully filled ${result.filledFields.length} fields`);
-//     } else {
-//       showStatus(`No fields were filled. Error: ${result.error}`, true);
-//     }
-
-//     console.log("Filled fields:", result.filledFields);
-//     console.log("Failed fields:", result.failedFields);
-//   } catch (error) {
-//     showStatus(`Error: ${error.message || error}`, true);
-//     console.error("Fill error:", error);
-//   }
-// }
-
-// document.addEventListener("DOMContentLoaded", () => {
-//   const fetchAndFillButton = document.getElementById("fetchAndFillButton");
-
-//   fetchAndFillButton.addEventListener("click", async () => {
-//     showStatus("Fetching data...");
-
-//     // Fetch drivers using the token from cookies
-//     const drivers = await fetchDrivers();
-
-//     if (!drivers || drivers.length === 0) {
-//       showStatus("No drivers found or failed to fetch data.", true);
-//       return;
-//     }
-
-//     // Automatically fill the form for the first driver (or loop through all drivers)
-//     const driver = drivers[0];
-//     showStatus(`Filling form for driver: ${driver.firstName} ${driver.lastName}`);
-
-//     await fillFormFields(driver);
-//   });
-// });
-
-// let drivers = [];
-
-// function showStatus(message, isError = false) {
-//   const status = document.getElementById("status");
-//   status.textContent = message;
-//   status.className = isError ? "error" : "success";
-// }
-
-// function displayDriverData(driver) {
-//   const dataDisplay = document.getElementById("dataDisplay");
-//   dataDisplay.innerHTML = ""; // Clear previous data
-
-//   const driverData = document.createElement("div");
-//   driverData.className = "data-section";
-
-//   const driverInfo = `
-//     <h4>Driver Information</h4>
-//     <pre>${JSON.stringify(driver, null, 2)}</pre>
-//   `;
-//   driverData.innerHTML = driverInfo;
-
-//   dataDisplay.appendChild(driverData);
-
-//   // Add a submit button
-//   const submitButton = document.createElement("button");
-//   submitButton.textContent = "Submit Form";
-//   submitButton.id = "submitFormButton";
-//   submitButton.addEventListener("click", async () => {
-//     showStatus("Submitting form...");
-//     const response = await submitForm(driver);
-//     if (response.success) {
-//       showStatus("Form submitted successfully!");
-//       console.log("Form submission response:", response.data);
-//     } else {
-//       showStatus(`Form submission failed: ${response.error}`, true);
-//     }
-//   });
-
-//   dataDisplay.appendChild(submitButton);
-// }
-
-// function downloadFile(url, fileName) {
-//   chrome.downloads.download(
-//     {
-//       url: url,
-//       filename: fileName,
-//     },
-//     (downloadId) => {
-//       if (chrome.runtime.lastError) {
-//         console.error("Download failed:", chrome.runtime.lastError);
-//       } else {
-//         console.log(`Download started with ID: ${downloadId}`);
-//       }
-//     }
-//   );
-// }
-
-// function displayCarrierData(carrier) {
-//   const dataDisplay = document.getElementById("dataDisplay");
-//   dataDisplay.innerHTML = ""; // Clear previous data
-
-//   // Create a container for carrier information
-//   const carrierInfo = document.createElement("div");
-//   carrierInfo.className = "carrier-info";
-
-//   // Add carrier details
-//   carrierInfo.innerHTML = `
-//     <h3>Carrier Information</h3>
-//     <div class="carrier-details">
-//       <p><strong>Company Name:</strong> ${carrier.carrierAuthority.authorityName}</p>
-//       <p><strong>MC Number:</strong> ${carrier.carrierAuthority.mcNumber}</p>
-//       <p><strong>DOT Number:</strong> ${carrier.carrierAuthority.dotNumber}</p>
-//       <p><strong>EIN:</strong> ${carrier.carrierAuthority.companyEIN}</p>
-//       <p><strong>Address:</strong> ${carrier.carrierAuthority.authorityAddress}</p>
-//       <p><strong>Phone:</strong> ${carrier.carrierAuthority.companyPhoneNumber}</p>
-//       <p><strong>Email:</strong> ${carrier.carrierAuthority.companyEmail}</p>
-//     </div>
-//   `;
-
-//   // Add documents section
-//   const documentsSection = document.createElement("div");
-//   documentsSection.className = "documents-section";
-//   documentsSection.innerHTML = `
-//     <h3>Documents</h3>
-//     <div class="document-list">
-//       ${carrier.documents
-//         .map(
-//           (doc) => `
-//         <div class="document-item">
-//           <span>${doc.type}</span>
-//           <button onclick="downloadFile('${doc.path}', '${doc.name}')">Download</button>
-//         </div>
-//       `
-//         )
-//         .join("")}
-//     </div>
-//   `;
-
-//   // Append carrier info and documents to the display
-//   dataDisplay.appendChild(carrierInfo);
-//   dataDisplay.appendChild(documentsSection);
-// }
-
-// async function getAccessToken() {
-//   return new Promise((resolve) => {
-//     chrome.cookies.get(
-//       {
-//         url: "https://api.supertruck.ai",
-//         name: "supertruck_access_token",
-//       },
-//       (cookie) => {
-//         if (chrome.runtime.lastError) {
-//           console.error("Cookie error:", chrome.runtime.lastError);
-//           resolve(null);
-//         } else if (cookie) {
-//           console.log("Cookie found:", cookie);
-//           resolve(cookie.value);
-//         } else {
-//           console.log("Cookie not found");
-//           resolve(null);
-//         }
-//       }
-//     );
-//   });
-// }
-
-// async function fetchDrivers() {
-//   try {
-//     const token = await getAccessToken();
-
-//     if (!token) {
-//       showStatus("Access token not found in cookies. Please log in to the application.", true);
-//       return;
-//     }
-
-//     const response = await fetch(
-//       "https://api.supertruck.ai/production/api/v1/broker-setup-agent/list-assigned-tickets/2",
-//       {
-//         headers: {
-//           Authorization: `Bearer ${token}`,
-//         },
-//       }
-//     );
-
-//     if (!response.ok) {
-//       throw new Error(`HTTP error! status: ${response.status}`);
-//     }
-
-//     const data = await response.json();
-//     drivers = data.data.carrier.drivers.map((driver) => ({
-//       _id: driver.id,
-//       firstName: driver.name.split(" ")[0],
-//       lastName: driver.name.split(" ")[1] || "",
-//       email: `${driver.name.replace(/\s/g, "").toLowerCase()}@example.com`,
-//       license: {
-//         number: driver.id,
-//       },
-//       documents: data.data.carrier.documents.reduce((acc, doc) => {
-//         acc[doc.type] = { url: doc.path, fileName: doc.name };
-//         return acc;
-//       }, {}),
-//     }));
-
-//     console.log("Fetched drivers:", drivers);
-//     return data.data.carrier; // Return carrier data
-//   } catch (error) {
-//     showStatus("Error fetching drivers: " + error.message, true);
-//     console.error("Fetch error:", error);
-//     return null;
-//   }
-// }
-
-// async function fillFormFields(driver) {
-//   return new Promise(async (resolve) => {
-//     chrome.scripting.executeScript(
-//       {
-//         target: { tabId: (await chrome.tabs.query({ active: true, currentWindow: true }))[0].id },
-//         func: async (driverData) => {
-//           try {
-//             // Function to fill input fields
-//             function fillInput(selector, value) {
-//               const inputs = document.querySelectorAll(selector);
-//               if (inputs.length === 0) {
-//                 console.error(`No input found for selector: ${selector}`);
-//                 return false;
-//               }
-
-//               inputs.forEach((input) => {
-//                 try {
-//                   const tag = input.tagName.toLowerCase();
-
-//                   if (tag === "input") {
-//                     const type = input.type.toLowerCase();
-
-//                     if (type === "checkbox" || type === "radio") {
-//                       input.checked = value === true || value === input.value;
-//                     } else if (type === "date" && value) {
-//                       const date = new Date(value);
-//                       if (!isNaN(date)) {
-//                         input.value = date.toISOString().split("T")[0];
-//                       }
-//                     } else if (value != null) {
-//                       input.value = value;
-//                     }
-//                   } else if (tag === "select" && value != null) {
-//                     const option = Array.from(input.options).find(
-//                       (opt) =>
-//                         opt.value.toLowerCase() === String(value).toLowerCase() ||
-//                         opt.text.toLowerCase() === String(value).toLowerCase()
-//                     );
-//                     if (option) {
-//                       input.value = option.value;
-//                     }
-//                   }
-
-//                   // Trigger change event
-//                   input.dispatchEvent(new Event("change", { bubbles: true }));
-//                 } catch (error) {
-//                   console.error(`Error filling input ${selector}:`, error);
-//                 }
-//               });
-
-//               return inputs.length > 0;
-//             }
-
-//             // Function to fill file inputs
-//             async function fillFileInput(selector, fileData) {
-//               if (!fileData?.url) return false;
-
-//               try {
-//                 const response = await fetch(fileData.url);
-//                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-//                 const blob = await response.blob();
-//                 const file = new File([blob], fileData.fileName || "file", {
-//                   type: fileData.mimeType || blob.type,
-//                 });
-
-//                 const dataTransfer = new DataTransfer();
-//                 dataTransfer.items.add(file);
-
-//                 const fileInput = document.querySelector(selector);
-//                 if (fileInput) {
-//                   fileInput.files = dataTransfer.files;
-//                   fileInput.dispatchEvent(new Event("change", { bubbles: true }));
-//                   return true;
-//                 } else {
-//                   console.error(`No file input found for selector: ${selector}`);
-//                 }
-//               } catch (error) {
-//                 console.error("Error filling file input:", error);
-//               }
-//               return false;
-//             }
-
-//             // Field mapping
-//             const fieldMap = {
-//               firstName: '[name="firstName"], [name="first_name"], [name="fname"], [name="first"], #firstName, #first_name, #fname, #first, [placeholder*="first name" i], input[type="text"][id*="first" i]',
-//               lastName: '[name="lastName"], [name="last_name"], [name="lname"], [name="last"], #lastName, #last_name, #lname, #last, [placeholder*="last name" i], input[type="text"][id*="last" i]',
-//               email: '[name="email"], [name="emailAddress"], #email, #emailAddress, input[type="email"], [placeholder*="email" i]',
-//               "license.number": '[name="licenseNumber"], [name="license"], #licenseNumber, #license, [placeholder*="license" i]',
-//               "documents.licenseImage": '[name="licenseImage"], [name="driverLicense"], #licenseImage, #driverLicense, input[type="file"][name*="license" i]',
-//             };
-
-//             // Fill all fields
-//             const results = await Promise.all(
-//               Object.entries(fieldMap).map(async ([field, selector]) => {
-//                 const value = field.split(".").reduce((obj, key) => obj?.[key], driverData);
-//                 const isFileInput = field.startsWith("documents.");
-//                 if (value) {
-//                   const success = isFileInput
-//                     ? await fillFileInput(selector, value)
-//                     : fillInput(selector, value);
-//                   return { field, success };
-//                 }
-//                 return { field, success: false };
-//               })
-//             );
-
-//             return {
-//               success: results.some((r) => r.success),
-//               filledFields: results.filter((r) => r.success).map((r) => r.field),
-//               failedFields: results.filter((r) => !r.success).map((r) => r.field),
-//             };
-//           } catch (error) {
-//             console.error("Error in injected script:", error);
-//             return {
-//               success: false,
-//               error: error.message || "Unknown error in injected script",
-//             };
-//           }
-//         },
-//         args: [driver],
-//       },
-//       (results) => {
-//         const result = results[0].result;
-//         resolve(result);
-//       }
-//     );
-//   });
-// }
-
-// async function submitForm(driver) {
-//   return new Promise(async(resolve) => {
-//     chrome.scripting.executeScript(
-//       {
-//         target: { tabId: (await chrome.tabs.query({ active: true, currentWindow: true }))[0].id },
-//         func: async (driverData) => {
-//           try {
-//             // Find the form on the page
-//             const form = document.querySelector("form");
-//             if (!form) {
-//               throw new Error("No form found on the page.");
-//             }
-
-//             // Determine the form's method and action
-//             const method = form.method.toUpperCase();
-//             const action = form.action;
-
-//             // Prepare the request options
-//             const formData = new FormData(form);
-//             let requestOptions = {
-//               method: method,
-//               headers: {
-//                 Accept: "application/json", // Ensure the server returns JSON
-//               },
-//             };
-
-//             // Handle GET and HEAD methods (no body allowed)
-//             if (method === "GET" || method === "HEAD") {
-//               // Convert FormData to URL query parameters
-//               const params = new URLSearchParams(formData);
-//               const url = `${action}?${params.toString()}`;
-//               const response = await fetch(url, requestOptions);
-//               if (!response.ok) {
-//                 throw new Error(`Form submission failed: ${response.statusText}`);
-//               }
-//               const data = await response.json();
-//               return { success: true, data };
-//             } else {
-//               // For POST, PUT, PATCH, etc., include the body
-//               requestOptions.body = formData;
-//               const response = await fetch(action, requestOptions);
-
-//               // Check if the response is JSON
-//               const contentType = response.headers.get("content-type");
-//               if (!contentType || !contentType.includes("application/json")) {
-//                 const text = await response.text();
-//                 throw new Error(`Server returned non-JSON response: ${text}`);
-//               }
-
-//               if (!response.ok) {
-//                 throw new Error(`Form submission failed: ${response.statusText}`);
-//               }
-
-//               const data = await response.json();
-//               return { success: true, data };
-//             }
-//           } catch (error) {
-//             return { success: false, error: error.message };
-//           }
-//         },
-//         args: [driver],
-//       },
-//       (results) => {
-//         const result = results[0].result;
-//         resolve(result);
-//       }
-//     );
-//   });
-// }
-
-// document.addEventListener("DOMContentLoaded", () => {
-//   const fetchAndFillButton = document.getElementById("fetchAndFillButton");
-
-//   fetchAndFillButton.addEventListener("click", async () => {
-//     showStatus("Fetching data...");
-
-//     // Fetch carrier data
-//     const carrier = await fetchDrivers();
-
-//     if (!carrier) {
-//       showStatus("No carrier data found or failed to fetch data.", true);
-//       return;
-//     }
-
-//     // Display carrier data in the popup
-//     displayCarrierData(carrier);
-//     showStatus("Data fetched successfully!");
-
-//     // Fill form fields for the first driver
-//     const driver = carrier.drivers[0];
-//     const result = await fillFormFields(driver);
-
-//     if (result.success) {
-//       showStatus(`Successfully filled ${result.filledFields.length} fields.`);
-//     } else {
-//       showStatus(`Failed to fill fields: ${result.error}`, true);
-//     }
-//   });
-// });
-
-//popup.js
 
 let drivers = [];
 
@@ -684,77 +41,73 @@ function displayDriverData(driver) {
   dataDisplay.appendChild(submitButton);
 }
 
-function downloadFile(url, fileName) {
-  chrome.downloads.download(
-    {
-      url: url,
-      filename: fileName,
-    },
-    (downloadId) => {
-      if (chrome.runtime.lastError) {
-        console.error("Download failed:", chrome.runtime.lastError);
-      } else {
-        console.log(`Download started with ID: ${downloadId}`);
-      }
-    }
-  );
-}
-
-// function displayCarrierData(carrier) {
-//   const dataDisplay = document.getElementById("dataDisplay");
-//   dataDisplay.innerHTML = ""; // Clear previous data
-
-//   // Create a container for carrier information
-//   const carrierInfo = document.createElement("div");
-//   carrierInfo.className = "carrier-info";
-
-//   // Add carrier details
-//   carrierInfo.innerHTML = `
-//     <h3>Carrier Information</h3>
-//     <div class="carrier-details">
-//       <p><strong>Company Name:</strong> ${carrier.carrierAuthority.authorityName}</p>
-//       <p><strong>MC Number:</strong> ${carrier.carrierAuthority.mcNumber}</p>
-//       <p><strong>DOT Number:</strong> ${carrier.carrierAuthority.dotNumber}</p>
-//       <p><strong>EIN:</strong> ${carrier.carrierAuthority.companyEIN}</p>
-//       <p><strong>Address:</strong> ${carrier.carrierAuthority.authorityAddress}</p>
-//       <p><strong>Phone:</strong> ${carrier.carrierAuthority.companyPhoneNumber}</p>
-//       <p><strong>Email:</strong> ${carrier.carrierAuthority.companyEmail}</p>
-//     </div>
-//   `;
-
-//   // Add documents section
-//   const documentsSection = document.createElement("div");
-//   documentsSection.className = "documents-section";
-//   documentsSection.innerHTML = `
-//     <h3>Documents</h3>
-//     <div class="document-list">
-//       ${carrier.documents
-//         .map(
-//           (doc) => `
-//         <div class="document-item">
-//           <span>${doc.type}</span>
-//           <button class="download-button" data-url="${doc.path}" data-filename="${doc.name}">Download</button>
-//         </div>
-//       `
-//         )
-//         .join("")}
-//     </div>
-//   `;
-
-//   // Append carrier info and documents to the display
-//   dataDisplay.appendChild(carrierInfo);
-//   dataDisplay.appendChild(documentsSection);
-
-//   // Attach event listeners to download buttons
-//   const downloadButtons = document.querySelectorAll(".download-button");
-//   downloadButtons.forEach((button) => {
-//     button.addEventListener("click", () => {
-//       const url = button.getAttribute("data-url");
-//       const fileName = button.getAttribute("data-filename");
-//       downloadFile(url, fileName);
-//     });
-//   });
+// function downloadFile(url, fileName) {
+//   chrome.downloads.download(
+//     {
+//       url: url,
+//       filename: fileName,
+//     },
+//     (downloadId) => {
+//       if (chrome.runtime.lastError) {
+//         console.error("Download failed:", chrome.runtime.lastError);
+//       } else {
+//         console.log(`Download started with ID: ${downloadId}`);
+//       }
+//     }
+//   );
 // }
+
+const mimeTypeToExtension = {
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
+  'image/gif': '.gif',
+  'application/pdf': '.pdf',
+  'application/msword': '.doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'application/vnd.ms-excel': '.xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+  'text/plain': '.txt',
+  'text/csv': '.csv',
+  'application/zip': '.zip',
+  
+};
+
+async function downloadFile(url, fileName, folderName) {
+  try {
+    // Fetch the file to get the Content-Type header
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch file: ${response.statusText}`);
+    }
+
+    // Get the Content-Type header
+    const contentType = response.headers.get('Content-Type');
+    console.log(`Content-Type for ${fileName}: ${contentType}`);
+
+    // Determine the file extension based on the Content-Type
+    const fileExtension = mimeTypeToExtension[contentType] || '.bin'; // Default to .bin if unknown
+    const fullFileName = `${fileName}${fileExtension}`;
+    const fullPath = `${folderName}/${fullFileName}`;
+
+    // Download the file using the Chrome downloads API
+    chrome.downloads.download(
+      {
+        url: url,
+        filename: fullPath,
+        conflictAction: 'uniquify', // Avoid overwriting files with the same name
+      },
+      (downloadId) => {
+        if (chrome.runtime.lastError) {
+          console.error("Download failed:", chrome.runtime.lastError);
+        } else {
+          console.log(`Download started with ID: ${downloadId}`);
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Error downloading file:", error);
+  }
+}
 
 function truncateText(text, maxLength) {
   return text.length > maxLength ? text.slice(0, maxLength) + "..." : text;
@@ -895,33 +248,11 @@ function displayCarrierData(carrier) {
     icon.addEventListener("click", () => {
       const url = icon.getAttribute("data-url");
       const fileName = icon.getAttribute("data-filename");
-      downloadFile(url, fileName);
+      const folderName = `${carrier.drivers[0].name}`;
+      downloadFile(url, fileName, folderName);
     });
   });
 }
-
-// async function getAccessToken() {
-//   return new Promise((resolve) => {
-//     chrome.cookies.get(
-//       {
-//         url: "https://api.supertruck.ai",
-//         name: "supertruck_access_token",
-//       },
-//       (cookie) => {
-//         if (chrome.runtime.lastError) {
-//           console.error("Cookie error:", chrome.runtime.lastError);
-//           resolve(null);
-//         } else if (cookie) {
-//           console.log("Cookie found:", cookie);
-//           resolve(cookie.value);
-//         } else {
-//           console.log("Cookie not found");
-//           resolve(null);
-//         }
-//       }
-//     );
-//   });
-// }
 
 async function getAccessToken() {
   return new Promise((resolve) => {
@@ -955,6 +286,231 @@ async function getAccessToken() {
   });
 }
 
+// async function fetchDrivers() {
+//   try {
+//     const token = await getAccessToken();
+
+//     if (!token) {
+//       showStatus(
+//         "Access token not found in cookies. Please log in to the application.",
+//         true
+//       );
+//       return;
+//     }
+
+//     const response = await fetch(
+//       "https://api.supertruck.ai/production/api/v1/broker-setup-agent/list-assigned-tickets/2",
+//       {
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//         },
+//       }
+//     );
+
+//     if (!response.ok) {
+//       throw new Error(`HTTP error! status: ${response.status}`);
+//     }
+
+//     const data = await response.json();
+//     drivers = data.data.carrier.drivers.map((driver) => ({
+//       _id: driver.id,
+//       firstName: driver.name.split(" ")[0],
+//       lastName: driver.name.split(" ")[1] || "",
+//       email: `${driver.name.replace(/\s/g, "").toLowerCase()}@example.com`,
+//       license: {
+//         number: driver.id,
+//       },
+//       documents: data.data.carrier.documents.reduce((acc, doc) => {
+//         acc[doc.type] = { url: doc.path, fileName: doc.name };
+//         return acc;
+//       }, {}),
+//     }));
+
+//     console.log("Fetched drivers:", drivers);
+//     return data.data.carrier; // Return carrier data
+//   } catch (error) {
+//     showStatus("Error fetching drivers: " + error.message, true);
+//     console.error("Fetch error:", error);
+//     return null;
+//   }
+// }
+
+// async function fillFormFields(driver, documents) {
+//   const script = {
+//     target: {
+//       tabId: (await chrome.tabs.query({ active: true, currentWindow: true }))[0]
+//         .id,
+//       allFrames: true,
+//     },
+//     func: async (driverData) => {
+//       console.log("Injected script is running!");
+//       console.log("Driver data received in injected script:", driverData);
+
+//       try {
+//         await new Promise((resolve) => {
+//           const checkForm = () => {
+//             const form = document.querySelector("form");
+//             if (form) {
+//               console.log("Form found:", form);
+//               resolve();
+//             } else {
+//               console.log("Form not found, retrying...");
+//               setTimeout(checkForm, 100);
+//             }
+//           };
+//           checkForm();
+//         });
+
+//         // Function to fill file inputs
+//         async function fillFileInput(fileData) {
+//           if (!fileData?.url) return false;
+
+//           try {
+//             const response = await fetch(fileData.url);
+//             if (!response.ok)
+//               throw new Error(`HTTP error! status: ${response.status}`);
+
+//             const blob = await response.blob();
+//             const file = new File([blob], fileData.fileName || "file", {
+//               type: fileData.mimeType || blob.type,
+//             });
+
+//             const dataTransfer = new DataTransfer();
+//             dataTransfer.items.add(file);
+
+//             return dataTransfer.files;
+//           } catch (error) {
+//             console.error("Error fetching file:", error);
+//             return false;
+//           }
+//         }
+
+//         // Function to fill inputs
+//         function fillInput(selector, value, isFileInput = false) {
+//           const inputs = document.querySelectorAll(selector);
+//           console.log(`Inputs found for selector "${selector}":`, inputs);
+
+//           if (inputs.length === 0) {
+//             console.error(`No inputs found for selector: ${selector}`);
+//             return false;
+//           }
+
+//           inputs.forEach(async (input) => {
+//             try {
+//               const tag = input.tagName.toLowerCase();
+
+//               if (tag === "input") {
+//                 const type = input.type.toLowerCase();
+
+//                 if (type === "file" && isFileInput) {
+//                   const files = await fillFileInput(value);
+//                   if (files) {
+//                     input.files = files;
+//                     input.dispatchEvent(new Event("change", { bubbles: true }));
+//                   }
+//                 } else if (type === "checkbox" || type === "radio") {
+//                   input.checked = value === true || value === input.value;
+//                   input.dispatchEvent(new Event("change", { bubbles: true }));
+//                 } else if (type === "date" && value) {
+//                   const date = new Date(value);
+//                   if (!isNaN(date)) {
+//                     input.value = date.toISOString().split("T")[0];
+//                     input.dispatchEvent(new Event("change", { bubbles: true }));
+//                   }
+//                 } else if (value != null) {
+//                   input.value = value;
+//                   input.dispatchEvent(new Event("change", { bubbles: true }));
+//                 }
+//               } else if (tag === "select" && value != null) {
+//                 const option = Array.from(input.options).find(
+//                   (opt) =>
+//                     opt.value.toLowerCase() === String(value).toLowerCase() ||
+//                     opt.text.toLowerCase() === String(value).toLowerCase()
+//                 );
+//                 if (option) {
+//                   input.value = option.value;
+//                   input.dispatchEvent(new Event("change", { bubbles: true }));
+//                 }
+//               }
+//             } catch (error) {
+//               console.error(`Error filling input ${selector}:`, error);
+//             }
+//           });
+
+//           return inputs.length > 0;
+//         }
+//           console.log("🚀 ~ file: popup.js:1111 ~ fillInput ~ length:", documents.licenseImage);
+
+//         // Field mapping
+//         const fieldMap = {
+//           name: '#firstName,  [name="first_name"], [name="firstName"]',
+//           driverType: '#lastName, [name="last_name"], [name="lastName"]',
+//           email: '#email, [name="email"], [name="user_email"]',
+//           licenseNumber:
+//             '#license-number, [name="license_number"], [name="licenseNumber"]',
+//           "documents.licenseImage":
+//             '#license-image, [name="license_image"], [name="licenseImage"]',
+//         };
+
+//         // Fill all fields
+//         const results = await Promise.all(
+//           Object.entries(fieldMap).map(async ([field, selector]) => {
+//             const value = field
+//               .split(".")
+//               .reduce((obj, key) => obj?.[key], driverData);
+//             const isFileInput = field.startsWith("documents.");
+//             if (value) {
+//               const success = await fillInput(selector, value, isFileInput);
+//               return { field, success };
+//             }
+//             return { field, success: false };
+//           })
+//         );
+
+//         return {
+//           success: results.some((r) => r.success),
+//           filledFields: results.filter((r) => r.success).map((r) => r.field),
+//           failedFields: results.filter((r) => !r.success).map((r) => r.field),
+//         };
+//       } catch (error) {
+//         console.error("Error in injected script:", error);
+//         return {
+//           success: false,
+//           error: error.message || "Unknown error in injected script",
+//         };
+//       }
+//     },
+//     args: [driver],
+//   };
+
+//   try {
+//     const results = await chrome.scripting.executeScript(script);
+//     console.log("Script execution results:", results);
+
+//     if (!results || results.length === 0) {
+//       throw new Error("No results returned from script execution.");
+//     }
+
+//     const result = results[0].result;
+//     console.log("Script result:", result);
+
+//     if (result.success) {
+//       showStatus(`Successfully filled ${result.filledFields.length} fields`);
+//     } else {
+//       showStatus(`No fields were filled. Error: ${result.error}`, true);
+//     }
+
+//     console.log("Filled fields:", result.filledFields);
+//     console.log("Failed fields:", result.failedFields);
+
+//     return result;
+//   } catch (error) {
+//     showStatus(`Error: ${error.message || error}`, true);
+//     console.error("Fill error:", error);
+//     return { success: false, error: error.message };
+//   }
+// }
+
 async function fetchDrivers() {
   try {
     const token = await getAccessToken();
@@ -981,7 +537,7 @@ async function fetchDrivers() {
     }
 
     const data = await response.json();
-    drivers = data.data.carrier.drivers.map((driver) => ({
+    const drivers = data.data.carrier.drivers.map((driver) => ({
       _id: driver.id,
       firstName: driver.name.split(" ")[0],
       lastName: driver.name.split(" ")[1] || "",
@@ -996,7 +552,17 @@ async function fetchDrivers() {
     }));
 
     console.log("Fetched drivers:", drivers);
-    return data.data.carrier; // Return carrier data
+
+    // Download documents for each driver
+    // drivers.forEach((driver) => {
+    //   const folderName = `Drivers/${driver.firstName}_${driver.lastName}`;
+
+    //   Object.entries(driver.documents).forEach(([docType, doc]) => {
+    //     downloadFile(doc.url, doc.fileName, folderName);
+    //   });
+    // });
+
+    return data.data.carrier;
   } catch (error) {
     showStatus("Error fetching drivers: " + error.message, true);
     console.error("Fetch error:", error);
@@ -1004,26 +570,41 @@ async function fetchDrivers() {
   }
 }
 
-async function fillFormFields(driver, documents) {
+async function fillFormFields(carrier) {
+  console.log("Extension context - Carrier data:", carrier);
+
   const script = {
     target: {
-      tabId: (await chrome.tabs.query({ active: true, currentWindow: true }))[0]
-        .id,
+      tabId: (await chrome.tabs.query({ active: true, currentWindow: true }))[0].id,
       allFrames: true,
     },
-    func: async (driverData) => {
-      console.log("Injected script is running!");
-      console.log("Driver data received in injected script:", driverData);
+    func: async (carrierData) => {
+      const debug = (message, data) => {
+        console.log(
+          `%c[Form Filler Debug] ${message}`,
+          'background: #f0f0f0; color: #333; padding: 2px 5px; border-radius: 3px;',
+          data || ''
+        );
+      };
+
+      debug('Script injected successfully');
+      debug('Carrier data received:', carrierData);
 
       try {
-        await new Promise((resolve) => {
+        // Wait for form with timeout
+        const form = await new Promise((resolve, reject) => {
+          let attempts = 0;
+          const maxAttempts = 20; // Maximum 20 attempts
           const checkForm = () => {
+            attempts++;
             const form = document.querySelector("form");
             if (form) {
-              console.log("Form found:", form);
-              resolve();
+              debug('Form found:', form);
+              resolve(form);
+            } else if (attempts >= maxAttempts) {
+              reject(new Error(`Form not found after ${maxAttempts} attempts`));
             } else {
-              console.log("Form not found, retrying...");
+              debug(`Form not found, attempt ${attempts}/${maxAttempts}`);
               setTimeout(checkForm, 100);
             }
           };
@@ -1032,63 +613,102 @@ async function fillFormFields(driver, documents) {
 
         // Function to fill file inputs
         async function fillFileInput(fileData) {
-          if (!fileData?.url) return false;
+          debug('Attempting to fill file input with:', fileData);
+          
+          if (!fileData?.path) {
+            debug('No file path provided');
+            return false;
+          }
 
           try {
-            const response = await fetch(fileData.url);
-            if (!response.ok)
+            const response = await fetch(fileData.path);
+            if (!response.ok) {
+              debug('File fetch failed:', response.statusText);
               throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
             const blob = await response.blob();
-            const file = new File([blob], fileData.fileName || "file", {
-              type: fileData.mimeType || blob.type,
+            debug('File blob created:', blob.type);
+
+            const file = new File([blob], fileData.name || 'file', {
+              type: blob.type
             });
+            debug('File object created:', file);
 
             const dataTransfer = new DataTransfer();
             dataTransfer.items.add(file);
 
             return dataTransfer.files;
           } catch (error) {
-            console.error("Error fetching file:", error);
+            debug('Error in fillFileInput:', error);
             return false;
           }
         }
 
         // Function to fill inputs
-        function fillInput(selector, value, isFileInput = false) {
-          const inputs = document.querySelectorAll(selector);
-          console.log(`Inputs found for selector "${selector}":`, inputs);
+        async function fillInput(selector, value, isFileInput = false) {
+          // Try both form-scoped and document-scoped queries
+          const formInputs = form.querySelectorAll(selector);
+          const docInputs = document.querySelectorAll(selector);
+          const inputs = formInputs.length > 0 ? formInputs : docInputs;
+          
+          debug(`Found ${inputs.length} inputs for selector:`, selector);
 
           if (inputs.length === 0) {
-            console.error(`No inputs found for selector: ${selector}`);
-            return false;
+            // Try additional common selectors for file inputs
+            if (isFileInput) {
+              const additionalSelectors = [
+                'input[type="file"]',
+                'input[accept="image/*"]',
+                'input[accept=".jpg,.jpeg,.png,.pdf"]'
+              ];
+              for (const addSelector of additionalSelectors) {
+                const addInputs = form.querySelectorAll(addSelector);
+                if (addInputs.length > 0) {
+                  debug(`Found file input using alternative selector: ${addSelector}`);
+                  inputs = addInputs;
+                  break;
+                }
+              }
+            }
+            
+            if (inputs.length === 0) {
+              debug('No inputs found for selector:', selector);
+              return false;
+            }
           }
 
-          inputs.forEach(async (input) => {
+          for (const input of inputs) {
             try {
               const tag = input.tagName.toLowerCase();
+              debug('Processing input:', { tag, type: input.type, selector });
 
               if (tag === "input") {
                 const type = input.type.toLowerCase();
 
                 if (type === "file" && isFileInput) {
+                  debug('Handling file input');
                   const files = await fillFileInput(value);
                   if (files) {
                     input.files = files;
                     input.dispatchEvent(new Event("change", { bubbles: true }));
+                    debug('File input filled successfully');
                   }
                 } else if (type === "checkbox" || type === "radio") {
                   input.checked = value === true || value === input.value;
                   input.dispatchEvent(new Event("change", { bubbles: true }));
+                  debug('Checkbox/Radio input filled');
                 } else if (type === "date" && value) {
                   const date = new Date(value);
                   if (!isNaN(date)) {
                     input.value = date.toISOString().split("T")[0];
                     input.dispatchEvent(new Event("change", { bubbles: true }));
+                    debug('Date input filled');
                   }
                 } else if (value != null) {
                   input.value = value;
                   input.dispatchEvent(new Event("change", { bubbles: true }));
+                  debug('Text input filled:', value);
                 }
               } else if (tag === "select" && value != null) {
                 const option = Array.from(input.options).find(
@@ -1099,35 +719,55 @@ async function fillFormFields(driver, documents) {
                 if (option) {
                   input.value = option.value;
                   input.dispatchEvent(new Event("change", { bubbles: true }));
+                  debug('Select input filled');
                 }
               }
             } catch (error) {
-              console.error(`Error filling input ${selector}:`, error);
+              debug('Error filling input:', error);
             }
-          });
+          }
 
           return inputs.length > 0;
         }
-          console.log("🚀 ~ file: popup.js:1111 ~ fillInput ~ length:", documents.licenseImage);
+
+        // Get driver and relevant documents
+        const driver = carrierData.drivers[0];
+        const documents = carrierData.documents;
+        
+        debug('Processing driver:', driver);
+        debug('Available documents:', documents);
+        
+        // Find license document
+        const licenseDoc = documents.find(doc => 
+          doc.type.toLowerCase().includes('license') || 
+          doc.name.toLowerCase().includes('license')
+        );
+        debug('Found license document:', licenseDoc);
 
         // Field mapping
         const fieldMap = {
-          name: '#firstName,  [name="first_name"], [name="firstName"]',
-          driverType: '#lastName, [name="last_name"], [name="lastName"]',
-          email: '#email, [name="email"], [name="user_email"]',
-          licenseNumber:
-            '#license-number, [name="license_number"], [name="licenseNumber"]',
-          "documents.licenseImage":
-            '#license-image, [name="license_image"], [name="licenseImage"]',
+          'name': '#firstName, [name="first_name"], [name="firstName"]',
+          'driverType': '#lastName, [name="last_name"], [name="lastName"]',
+          'email': '#email, [name="email"], [name="user_email"]',
+          'licenseNumber': '#license-number, [name="license_number"], [name="licenseNumber"]',
+          'licenseFile': '[name="driverLicense"], #driverLicense'  // Try any file input if specific ones aren't found
         };
+
+        debug('Starting to fill fields with mapping:', fieldMap);
 
         // Fill all fields
         const results = await Promise.all(
           Object.entries(fieldMap).map(async ([field, selector]) => {
-            const value = field
-              .split(".")
-              .reduce((obj, key) => obj?.[key], driverData);
-            const isFileInput = field.startsWith("documents.");
+            let value;
+            if (field === 'licenseFile') {
+              value = licenseDoc;
+            } else {
+              value = driver[field];
+            }
+
+            debug(`Processing field ${field} with value:`, value);
+
+            const isFileInput = field.endsWith('File');
             if (value) {
               const success = await fillInput(selector, value, isFileInput);
               return { field, success };
@@ -1136,32 +776,38 @@ async function fillFormFields(driver, documents) {
           })
         );
 
-        return {
+        const result = {
           success: results.some((r) => r.success),
           filledFields: results.filter((r) => r.success).map((r) => r.field),
           failedFields: results.filter((r) => !r.success).map((r) => r.field),
         };
+
+        debug('Fill operation completed with result:', result);
+        return result;
+
       } catch (error) {
-        console.error("Error in injected script:", error);
+        debug('Critical error in injected script:', error);
         return {
           success: false,
           error: error.message || "Unknown error in injected script",
         };
       }
     },
-    args: [driver],
+    args: [carrier],
   };
 
   try {
+    console.log("Extension context - About to inject script");
+    
     const results = await chrome.scripting.executeScript(script);
-    console.log("Script execution results:", results);
+    console.log("Extension context - Script execution results:", results);
 
     if (!results || results.length === 0) {
       throw new Error("No results returned from script execution.");
     }
 
     const result = results[0].result;
-    console.log("Script result:", result);
+    console.log("Extension context - Script result:", result);
 
     if (result.success) {
       showStatus(`Successfully filled ${result.filledFields.length} fields`);
@@ -1169,13 +815,10 @@ async function fillFormFields(driver, documents) {
       showStatus(`No fields were filled. Error: ${result.error}`, true);
     }
 
-    console.log("Filled fields:", result.filledFields);
-    console.log("Failed fields:", result.failedFields);
-
     return result;
   } catch (error) {
+    console.error("Extension context - Fill error:", error);
     showStatus(`Error: ${error.message || error}`, true);
-    console.error("Fill error:", error);
     return { success: false, error: error.message };
   }
 }
@@ -1258,40 +901,6 @@ async function submitForm(driver) {
   });
 }
 
-// document.addEventListener("DOMContentLoaded", () => {
-//   const fetchAndFillButton = document.getElementById("fetchAndFillButton");
-
-//   fetchAndFillButton.addEventListener("click", async () => {
-//     showStatus("Fetching data...");
-
-//     // Fetch carrier data
-//     const carrier = await fetchDrivers();
-
-//     if (!carrier) {
-//       showStatus("No carrier data found or failed to fetch data.", true);
-//       return;
-//     }
-
-//     // Display carrier data in the popup
-//     displayCarrierData(carrier);
-//     showStatus("Data fetched successfully!");
-
-//     // Fill form fields for the first driver
-//     const driver = carrier.drivers[0];
-//     const result = await fillFormFields(driver);
-
-//     if (result && result.success) {
-//       showStatus(`Successfully filled ${result.filledFields.length} fields.`);
-//     } else {
-//       showStatus(
-//         `Failed to fill fields: ${result?.error || "Unknown error"}`,
-//         true
-//       );
-//     }
-//   });
-// });
-
-
 document.addEventListener("DOMContentLoaded", () => {
   const fetchAndFillButton = document.getElementById("fetchAndFillButton");
   const initialContent = document.getElementById("initialContent");
@@ -1318,7 +927,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Fill form fields for the first driver
     const driver = carrier.drivers[0];
-    const result = await fillFormFields(driver);
+    // const result = await fillFormFields(driver);
+    // In your click handler
+const result = await fillFormFields(carrier);  // Pass the entire carrier object
 
     if (result && result.success) {
       showStatus(`Successfully filled ${result.filledFields.length} fields.`);

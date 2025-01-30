@@ -209,3 +209,49 @@ async function fillFormFields(driver) {
       console.error("Fill error:", error);
     }
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // async function getAccessToken() {
+//   return new Promise((resolve) => {
+//     chrome.cookies.get(
+//       {
+//         url: "https://api.supertruck.ai",
+//         name: "supertruck_access_token",
+//       },
+//       (cookie) => {
+//         if (chrome.runtime.lastError) {
+//           console.error("Cookie error:", chrome.runtime.lastError);
+//           resolve(null);
+//         } else if (cookie) {
+//           console.log("Cookie found:", cookie);
+//           resolve(cookie.value);
+//         } else {
+//           console.log("Cookie not found");
+//           resolve(null);
+//         }
+//       }
+//     );
+//   });
+// }
